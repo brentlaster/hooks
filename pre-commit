@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+# Example pre-commit hook written in python
+# (c) 2016 Brent Laster
+
+import sys, os, subprocess
+
+# define the string we want to check for
+IUO_WEBSITE='http://internal.mycompany.com'
+try:
+             # Get the status from Git in the short form
+             # Note: Could use -s instead of --porcelain
+             #  but porcelain is guaranteed not to break 
+             #  backwards-compatibility between releases.
+             status_output = subprocess.check_output(
+                    ["git","status","-uno","--porcelain"],
+                    stderr=subprocess.STDOUT).decode("utf-8")
+		
+             # create a list of status lines
+             status_list = status_output.splitlines()
+		
+             for status_line in status_list:
+                    # if the status line starts with A, then it is in the staging area
+                    if status_line.startswith('A'):
+                           status, _, status_file = status_line.partition(" ")
+                           staged_file = status_file.lstrip()
+                           # git the relative path from Git in case the file
+                           #  is in a subdirectory of the working directory
+                           rpath = subprocess.check_output(
+                                 ["git","rev-parse","--show-prefix"],
+                                stderr=subprocess.STDOUT).decode("ISO-8859-1")
+                           relative_path = rpath.rstrip()
+				
+                           # construct the :<path> syntax needed for show
+                           #  to dump the contents of the staged version
+                           staged_fullpath = ":" + relative_path + staged_file
+		
+                           # Use the git show :<path> syntax to get the contents
+                           #  of the actual staged version
+                           staged_content = subprocess.check_output(
+                                 ["git","show",staged_fullpath],
+                                 stderr=subprocess.STDOUT).decode("ISO-8859-1")
+                           # if we find the forbidden string, then abort the commit
+				
+                           if IUO_WEBSITE in staged_content:
+                                 tpath = relative_path + staged_file
+                                 print ("Error!",IUO_WEBSITE,"found in file",tpath)
+                                 print ("Commit disallowed due to error.")
+                                 sys.exit(-1)
+               sys.exit(0)
+					
+except subprocess.CalledProcessError:
+       print ("error!")
+       sys.exit(-2)

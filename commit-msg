@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# Example commit-msg hook written in bash
+# (c) 2016 Brent Laster
+
+# define our error messages
+error_msg1="Error: Commit message is too small."
+error_msg2="Error: Commit message cannot be the same as the previous commit message."
+error_msg3="Error: Expected text not in commit message:"
+abort_msg="Commit will not be allowed due to error."
+minimum_length=25
+
+# just exit if we don't have any arguments
+[ "$1" ] || exit 1
+
+# read the contents of the temp commit message file and get the length of it
+contents=$(<"$1")
+size=${#contents}
+
+# if the message is too short, error out
+if [ $size -le $minimum_length ]; then
+	echo "$error_msg1" >&2
+	echo "$abort_msg" >&2
+	exit 1
+fi
+
+# if we have a previous revision, make sure we're not using the same message as the last commit
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+    previous_log_msg=$(git show -s --format=%s)
+	if [ "$previous_log_msg" == "$contents" ]; then
+		echo "$error_msg2" >&2
+		echo "$abort_msg" >&2
+		exit 1
+	fi
+fi
+
+# if our branch is master or starts with "prod" or "ship"
+#  check to make sure we have the value defined in user.msg in the commit message
+branch=$(git symbolic-ref --short HEAD)
+if [[ $branch =~ ^master$|^(prod|ship).*$ ]]; then
+	iuo_msg=$(git config user.msg)
+	if ! grep -iqE "$iuo_msg" "$1"; then
+		echo "$error_msg3" "$iuo_msg" >&2
+		echo "$abort_msg" >&2
+		exit 1
+	fi
+fi	
+
+# Redirect output to stderr.
+exec 1>&2
+
+exit 0

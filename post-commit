@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+# Example post-commit hook written in perl  
+# (c) 2016 Brent Laster
+
+use strict;
+use warnings;
+
+use autodie;
+use File::Temp qw( tempfile );
+use IPC::Cmd qw( run );
+
+	
+# if we are doing a commit from a branch named web* then	
+# point git to the website worktree and do a checkout -f to mirror files out
+my $web_dir = `git config hooks.webdir`;
+chomp($web_dir);
+my $new_head_ref = `git rev-parse --abbrev-ref HEAD`;
+
+# remove since git index doesn't exist here
+delete $ENV{'GIT_INDEX_FILE'};
+if (defined($web_dir) && ($new_head_ref =~ /^web.*$/)) {
+	my $results = `git --work-tree="$web_dir" --git-dir="$ENV{'GIT_DIR'}" checkout -f`;
+}

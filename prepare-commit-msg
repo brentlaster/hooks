@@ -1,0 +1,59 @@
+#!/usr/bin/env groovy
+
+// Example prepare-commit-msg hook written in groovy
+// (c) 2016 Brent Laster
+
+import static java.lang.System.*
+
+def argc = this.args.size()
+def commitmsg_file_path, commit_type, commit_sha1
+
+commitmsg_file_path = this.args[0]
+
+// Get explicit commit type if passed
+if (argc > 1) 
+       commit_type = this.args[1]
+else
+    commit_type = ''
+
+if (argc > 2)
+    commit_sha1 = this.args[2]
+else
+    commit_sha1 = ''
+
+// See if we have user-defined message set
+def iuo_msg = ["git", "config", "user.msg"].execute()
+iuo_msg.waitFor()
+def config_rc = iuo_msg.exitValue()
+
+// If we don't have the configuration value set, then abort
+if (config_rc!=0)
+{ 
+       println "Configuration setting not found for user.msg."
+       println "Aborting commit!"
+       exit 1
+}
+def msg = iuo_msg.text
+
+// Read in an existing commit message
+def File commit_file = new File(commitmsg_file_path)
+
+// If the commit message already contains the value, then just continue
+if (commit_file.text.find(msg)) 
+{
+    println("Commit message already contains $msg - proceeding...")
+    exit 0
+}
+
+// Determine the branch
+def output_branch = ["git", "symbolic-ref", "--short", "HEAD"].execute()
+output_branch.waitFor()
+def current_branch = output_branch.text.trim()
+
+// If it matches the desired branch names, then append the custom message
+if  (current_branch.matches(/^master$|^(prod|ship).*$/))
+{
+       println "Current branch $current_branch is a production branch."
+       commit_file.append(msg)
+}
+exit 0

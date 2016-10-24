@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# Example post-checkout hook written
+# Written as shell executing perl one-liner
+# (c) 2016 Brent Laster
+
+# Get a list of affected files and for each one, remove a backup file (.bak extension) if present
+/usr/bin/perl -le '@files=`git ls-tree --name-only -r '$2'`; chomp(@files); @candidates=map {$_.".bak"} @files; unlink @candidates'

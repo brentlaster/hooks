@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+
+# Example post-receive hook written in ruby
+# (c) 2016 Brent Laster
+
+puts "Running post-receive hook..."
+deployment_dir=`git config user.deploy-dir`
+# rest of hook presumes deployment_dir exists
+
+# if the configuration value isn't set for Git, don't deploy
+if (deployment_dir == "")
+       puts "user.deploy_dir value not configured"
+       puts "Will not deploy"
+else
+       # multiple lines might be passed in - one for each branch being pushed
+       STDIN.each do |input_line|
+             (prev_rev, new_rev, refspec) = input_line.split
+             refspec.gsub!('refs/heads/','')
+             # only deploy if we're on master or branch that starts with prod or ship
+             if refspec =~ /^master|^(prod|ship).*$/
+                    # do the deploy
+                    # git-dir is already set for the hook
+                    deployment_dir.chomp()
+                    puts "Deploying to #{deployment_dir}"
+       result = `git --work-tree=#{deployment_dir.chomp()} checkout -f #{refspec}`
+                    puts "#{result}"
+             end
+    end
+end
+
+exit
